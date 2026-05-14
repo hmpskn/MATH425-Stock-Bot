@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 # Proje Bilgileri (Rapor Başlığı ile uyumlu)
 st.set_page_config(page_title="MATH 425 Stock Analysis", layout="wide")
 
-st.title("📈 MATH 425: Algoritmik Ticaret ve Simülasyon")
-st.markdown("### Hazırlayan: [Senin Adın] - [Öğrenci Numaran]")
+st.title("📈 MATH 425 Stock Analysis")
+st.markdown("### Hüseyin Münir Pişkin")
 
 # Yan Panel (Sidebar)
 st.sidebar.header("Parametreler")
