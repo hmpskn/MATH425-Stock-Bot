@@ -5,59 +5,74 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Page Configuration
-st.set_page_config(page_title="MATH 425 Stock Analysis Bot", layout="wide")
+st.set_page_config(page_title="Advanced Stock Analysis Bot", layout="wide")
 
 # Header Section
-st.title("📈 MATH 425: Algorithmic Trading & Simulation")
+st.title("📈 MATH 425: Advanced Algorithmic Trading & Simulation")
 #st.markdown("### Developed by: [Your Name] - [Your Student ID]")
-st.write("This application simulates a trading bot using Mathematical Moving Averages (SMA).")
+st.write("An interactive simulation platform using Moving Average Crossovers and RSI indicators.")
 
-# Sidebar Configuration (Input parameters)
-st.sidebar.header("Parameters")
-ticker = st.sidebar.text_input("Stock Ticker (e.g., AAPL, TSLA, MSFT)", "AAPL")
+# Sidebar Configuration
+st.sidebar.header("Strategy Parameters")
+ticker = st.sidebar.text_input("Stock Ticker", "AAPL")
 start_date = st.sidebar.date_input("Start Date", pd.to_datetime("2020-01-01"))
 
-if st.sidebar.button("Run Simulation"):
+# Dynamic Sliders for Interactive Analysis
+short_window = st.sidebar.slider("Short-term SMA (Days)", 5, 50, 20)
+long_window = st.sidebar.slider("Long-term SMA (Days)", 50, 250, 100)
+
+if st.sidebar.button("Run Advanced Simulation"):
     # 1. DATA COLLECTION
-    # Fetching historical data from Yahoo Finance
     data = yf.download(ticker, start=start_date)
     
-    # 2. MATHEMATICAL MODELING
-    # Calculating Simple Moving Averages (SMA)
-    # 20-day SMA represents short-term trend
-    # 100-day SMA represents long-term trend
-    data['SMA20'] = data['Close'].rolling(window=20).mean()
-    data['SMA100'] = data['Close'].rolling(window=100).mean()
+    # 2. MATHEMATICAL MODELING: SMAs
+    data['Short_SMA'] = data['Close'].rolling(window=short_window).mean()
+    data['Long_SMA'] = data['Close'].rolling(window=long_window).mean()
     
-    # 3. TRADING STRATEGY (Crossover Logic)
-    # Buy when 20 SMA is above 100 SMA
-    data['Signal'] = np.where(data['SMA20'] > data['SMA100'], 1.0, 0.0)
+    # 3. RSI CALCULATION (Relative Strength Index)
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    data['RSI'] = 100 - (100 / (1 + rs))
     
-    # 4. BACKTESTING & PERFORMANCE EVALUATION
-    # Calculating daily percentage returns
+    # 4. TRADING STRATEGY
+    data['Signal'] = np.where(data['Short_SMA'] > data['Long_SMA'], 1.0, 0.0)
+    
+    # 5. PERFORMANCE & RISK ANALYSIS
     data['Market_Returns'] = data['Close'].pct_change()
-    # Strategy returns apply only when the bot holds a 'Buy' signal
     data['Strategy_Returns'] = data['Market_Returns'] * data['Signal'].shift(1)
     
-    # Cumulative growth starting from $100
     data['Market_Wealth'] = 100 * (1 + data['Market_Returns']).cumprod()
     data['Strategy_Wealth'] = 100 * (1 + data['Strategy_Returns']).cumprod()
     
-    # 5. OUTPUT DISPLAY (Metrics)
-    col1, col2 = st.columns(2)
-    col1.metric("Final Market Value (Buy & Hold)", f"${data['Market_Wealth'].iloc[-1]:.2f}")
-    col2.metric("Final Bot Strategy Value", f"${data['Strategy_Wealth'].iloc[-1]:.2f}")
+    # Risk Metric: Maximum Drawdown
+    peak = data['Strategy_Wealth'].cummax()
+    drawdown = (data['Strategy_Wealth'] - peak) / peak
+    max_drawdown = drawdown.min()
     
-    # 6. VISUALIZATION
-    # Comparing Market performance vs. Strategy performance
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(data['Strategy_Wealth'], label="Trading Bot Strategy (SMA 20/100)", color='blue', lw=2)
-    ax.plot(data['Market_Wealth'], label="Market (Buy & Hold)", color='gray', alpha=0.5)
-    ax.set_title(f"Performance Analysis: {ticker}")
-    ax.set_ylabel("Portfolio Value ($)")
-    ax.set_xlabel("Date")
-    ax.legend()
-    ax.grid(True)
-    st.pyplot(fig)
+    # 6. OUTPUT DISPLAY
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Final Bot Value", f"${data['Strategy_Wealth'].iloc[-1]:.2f}")
+    col2.metric("Market Performance", f"{((data['Market_Wealth'].iloc[-1]/100)-1)*100:.1f}%")
+    col3.metric("Max Drawdown (Risk)", f"{max_drawdown*100:.1f}%")
     
-    st.success("Simulation completed successfully!")
+    # 7. VISUALIZATION
+    # Main Performance Chart
+    st.subheader("Performance Comparison")
+    fig1, ax1 = plt.subplots(figsize=(12, 5))
+    ax1.plot(data['Strategy_Wealth'], label="Bot Strategy", color='blue', lw=2)
+    ax1.plot(data['Market_Wealth'], label="Market (Buy & Hold)", color='gray', alpha=0.5)
+    ax1.legend()
+    st.pyplot(fig1)
+    
+    # RSI Chart
+    st.subheader("RSI Indicator (Momentum)")
+    fig2, ax2 = plt.subplots(figsize=(12, 3))
+    ax2.plot(data['RSI'], color='purple')
+    ax2.axhline(70, linestyle='--', color='red', alpha=0.5) # Overbought
+    ax2.axhline(30, linestyle='--', color='green', alpha=0.5) # Oversold
+    ax2.set_ylim(0, 100)
+    st.pyplot(fig2)
+    
+    st.success("Analysis Complete!")
